@@ -39,7 +39,7 @@ impl Encoder {
 
     /// Feeds a frame to the encoder.
     ///
-    /// # Unsafety
+    /// # Safety
     ///
     /// The caller must ensure that the width, height *and* colorspace
     /// of the image are the same as that of the encoder.
@@ -138,6 +138,7 @@ pub struct Flush {
 
 impl Flush {
     /// Keeps flushing.
+    #[allow(clippy::should_implement_trait)]
     pub fn next(&mut self) -> Option<Result<(Data, Picture)>> {
         let enc = self.encoder.raw;
 
