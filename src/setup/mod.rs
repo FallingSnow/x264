@@ -70,9 +70,42 @@ impl Setup {
 
     /// Approximately restricts the bitrate.
     ///
-    /// The value is in metric kilobits per second.
-    pub fn bitrate(mut self, bitrate: i32) -> Self {
-        self.raw.rc.i_bitrate = bitrate;
+    /// The value is in metric kilobits per second. Setting this value also sets the rate control method to average bit rate and conflicts with setting crf.
+    pub fn bitrate(mut self, average: i32) -> Self {
+        self.raw.rc.i_rc_method = X264_RC_ABR as i32;
+        self.raw.rc.i_bitrate = average;
+        self
+    }
+
+    /// Target a constant rate factor. Contant rate factoring results in the best objective psnr/ssim per bit (efficiency).
+    ///
+    /// Values go from -12 to 51 with -12 resulting in the highest bitrate/quality. The default is `23.0`. This setting conflicts with setting bitrate.
+    pub fn crf(mut self, target: f32, max: f32) -> Self {
+        self.raw.rc.i_rc_method = X264_RC_CRF as i32;
+        self.raw.rc.f_rf_constant = target;
+        self.raw.rc.f_rf_constant_max = max;
+        self
+    }
+
+    /// Restricts the maximum number of bframes.
+    /// 
+    /// Setting this to 0 disable bframes.
+    pub fn bframes(mut self, max: i32) -> Self {
+        self.raw.i_bframe = max;
+        self
+    }
+
+    /// Sets the number of frames to be used as a buffer for threaded lookahead
+    /// 
+    /// 0 disables threaded lookahead, which allows lower latency at the cost of reduced efficiency
+    pub fn lookahead(mut self, number: i32) -> Self {
+        self.raw.i_sync_lookahead = number;
+        self
+    }
+
+    /// When enabled, allows a group of pictures (GOP) to contain references to other groups of pictures
+    pub fn open_gop(mut self, enabled: bool) -> Self {
+        self.raw.b_open_gop = enabled as i32;
         self
     }
 

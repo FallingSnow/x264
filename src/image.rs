@@ -8,6 +8,7 @@ pub struct Image<'a> {
     raw: x264_image_t,
     width: i32,
     height: i32,
+    frame_type: FrameType,
     spooky: PhantomData<&'a [u8]>,
 }
 
@@ -21,6 +22,7 @@ impl<'a> Image<'a> {
         format: E,
         width: i32,
         height: i32,
+        frame_type: Option<FrameType>,
         planes: &[Plane<'a>],
     ) -> Self {
         //TODO: Get someone who knows what they're doing to verify this.
@@ -61,7 +63,7 @@ impl<'a> Image<'a> {
             assert!(hq * hs[i] <= plane.data.len() as i32 / plane.stride);
         }
 
-        unsafe { Self::new_unchecked(format, width, height, planes) }
+        unsafe { Self::new_unchecked(format, width, height, frame_type.unwrap_or(FrameType::Auto), planes) }
     }
 
     /// Makes a new packed BGR image.
@@ -70,7 +72,7 @@ impl<'a> Image<'a> {
             stride: data.len() as i32 / height,
             data,
         };
-        Self::new(Colorspace::BGR, width, height, &[plane])
+        Self::new(Colorspace::BGR, width, height, None, &[plane])
     }
 
     /// Makes a new packed RGB image.
@@ -79,7 +81,7 @@ impl<'a> Image<'a> {
             stride: data.len() as i32 / height,
             data,
         };
-        Self::new(Colorspace::RGB, width, height, &[plane])
+        Self::new(Colorspace::RGB, width, height, None, &[plane])
     }
 
     /// Makes a new packed BGRA image.
@@ -88,7 +90,17 @@ impl<'a> Image<'a> {
             stride: data.len() as i32 / height,
             data,
         };
-        Self::new(Colorspace::BGRA, width, height, &[plane])
+        Self::new(Colorspace::BGRA, width, height, None, &[plane])
+    }
+
+    /// Set the frame type you would like the encoder to create for only this image. Set this to [`FrameType::IDR`] for a gop "refresh".
+    pub fn set_frame_type(&mut self, frame_type: FrameType) {
+        self.frame_type = frame_type;
+    }
+
+    /// Get frame type
+    pub fn frame_type(&self) -> &FrameType {
+        &self.frame_type
     }
 
     /// Makes a new image with the given planes and colorspace.
@@ -102,6 +114,7 @@ impl<'a> Image<'a> {
         format: Encoding,
         width: i32,
         height: i32,
+        frame_type: FrameType,
         planes: &[Plane<'a>],
     ) -> Self {
         let mut strides = [0; 4];
@@ -123,6 +136,7 @@ impl<'a> Image<'a> {
             raw,
             width,
             height,
+            frame_type,
             spooky: PhantomData,
         }
     }
@@ -154,4 +168,21 @@ pub struct Plane<'a> {
     pub stride: i32,
     /// The plane's pixel data.
     pub data: &'a [u8],
+}
+
+/// List of possible frame type values
+#[derive(Clone, Copy)]
+pub enum FrameType {
+    /// Allow the encoder to choose the best frame type
+    Auto = X264_TYPE_AUTO as isize,
+    /// Instantaneous Decoding Refresh: An IDR picture causes the decoding process to mark all reference pictures as "unused for reference" immediately after the decoding of the IDR picture. All coded pictures that follow an IDR picture in decoding order can be decoded without inter prediction from any picture that precedes the IDR picture in decoding order. The first picture of each coded video sequence in decoding order is an IDR picture.
+    IDR = X264_TYPE_IDR as isize,
+    /// Intra-frame
+    I = X264_TYPE_I as isize,
+    /// Predicted Frame
+    P = X264_TYPE_P as isize,
+    Bref = X264_TYPE_BREF as isize,
+    /// Bi-Directional Frame
+    B = X264_TYPE_B as isize,
+    Keyframe = X264_TYPE_KEYFRAME as isize,
 }

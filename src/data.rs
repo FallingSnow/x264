@@ -12,6 +12,8 @@ pub struct Data<'a> {
     spooky: PhantomData<&'a [x264_nal_t]>,
 }
 
+unsafe impl<'a> Send for Data<'a> {}
+
 impl<'a> Data<'a> {
     #[doc(hidden)]
     pub unsafe fn from_raw_parts(ptr: *mut x264_nal_t, len: usize) -> Self {

@@ -44,13 +44,14 @@ impl Encoder {
     /// The caller must ensure that the width, height *and* colorspace
     /// of the image are the same as that of the encoder.
     pub unsafe fn encode_unchecked(&mut self, pts: i64, image: Image) -> Result<(Data, Picture)> {
-        let image = image.raw();
+        let image_raw = image.raw();
 
         let mut picture = MaybeUninit::uninit();
         x264_picture_init(picture.as_mut_ptr());
         let mut picture = picture.assume_init();
         picture.i_pts = pts;
-        picture.img = image;
+        picture.img = image_raw;
+        picture.i_type = image.frame_type().clone() as i32;
 
         let mut len = 0;
         let mut stuff = MaybeUninit::uninit();
