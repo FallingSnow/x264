@@ -8,6 +8,8 @@ pub struct Encoder {
     params: x264_param_t,
 }
 
+unsafe impl Send for Encoder {}
+
 impl Encoder {
     /// Creates a new builder with default options.
     ///
@@ -19,8 +21,8 @@ impl Encoder {
     #[doc(hidden)]
     pub unsafe fn from_raw(raw: *mut x264_t) -> Self {
         let mut params = MaybeUninit::uninit();
-        x264_encoder_parameters(raw, params.as_mut_ptr());
-        let params = params.assume_init();
+        unsafe { x264_encoder_parameters(raw, params.as_mut_ptr()) };
+        let params = unsafe { params.assume_init() };
         Self { raw, params }
     }
 
@@ -47,8 +49,8 @@ impl Encoder {
         let image_raw = image.raw();
 
         let mut picture = MaybeUninit::uninit();
-        x264_picture_init(picture.as_mut_ptr());
-        let mut picture = picture.assume_init();
+        unsafe { x264_picture_init(picture.as_mut_ptr()) };
+        let mut picture = unsafe { picture.assume_init() };
         picture.i_pts = pts;
         picture.img = image_raw;
         picture.i_type = image.frame_type().clone() as i32;
@@ -57,21 +59,23 @@ impl Encoder {
         let mut stuff = MaybeUninit::uninit();
         let mut raw = MaybeUninit::uninit();
 
-        let err = x264_encoder_encode(
-            self.raw,
-            stuff.as_mut_ptr(),
-            &mut len,
-            &mut picture,
-            raw.as_mut_ptr(),
-        );
+        let err = unsafe {
+            x264_encoder_encode(
+                self.raw,
+                stuff.as_mut_ptr(),
+                &mut len,
+                &mut picture,
+                raw.as_mut_ptr(),
+            )
+        };
 
         if err < 0 {
             Err(Error)
         } else {
-            let stuff = stuff.assume_init();
-            let raw = raw.assume_init();
-            let data = Data::from_raw_parts(stuff, len as usize);
-            let picture = Picture::from_raw(raw);
+            let stuff = unsafe { stuff.assume_init() };
+            let raw = unsafe { raw.assume_init() };
+            let data = unsafe { Data::from_raw_parts(stuff, len as usize) };
+            let picture = unsafe { Picture::from_raw(raw) };
             Ok((data, picture))
         }
     }
